@@ -16,7 +16,7 @@ public class PipeElementary {
 		//向管道写数据
 		Pipe.SinkChannel sinkChannel = pipe.sink();
 
-		String newData = "New String to write to file..." + System.currentTimeMillis();
+		String newData = "New string to write to pipe..." + System.currentTimeMillis();
 		ByteBuffer buf = ByteBuffer.allocate(48);
 		buf.clear();
 		buf.put(newData.getBytes());
@@ -32,6 +32,11 @@ public class PipeElementary {
 
 		buf = ByteBuffer.allocate(48);
 		int bytesRead = sourceChannel.read(buf);
+		buf.flip();
+		System.out.println(new String(buf.array(), 0, bytesRead));
+		
+		sinkChannel.close();
+		sourceChannel.close();
 
 	}
 
