@@ -12,9 +12,9 @@ import java.util.Iterator;
 public class EchoServer {
 
 	private int port = 1234;
-	
+
 	private ByteBuffer localBuffer = ByteBuffer.allocate(1024);
-	
+
 	public static void main(String[] args) {
 		try {
 			new EchoServer(2222).launch();
@@ -22,7 +22,7 @@ public class EchoServer {
 			e.printStackTrace();
 		}
 	}
-	
+
 	public EchoServer(int port) {
 		super();
 		this.port = port;
@@ -34,9 +34,9 @@ public class EchoServer {
 		Selector selector = Selector.open();
 		ssc.register(selector, SelectionKey.OP_ACCEPT);
 		ssc.socket().bind(new InetSocketAddress(port));
-		
-		System.out.println("Echo Server started...");
-		
+
+		System.out.println("Echo Server started...@" + port);
+
 		while (true) {
 			int selected = selector.select();
 			if (selected > 0) {
@@ -48,29 +48,15 @@ public class EchoServer {
 						if (!selectionKey.isValid()) {
 							continue;
 						}
-						ServerSocketChannel serverChannel = (ServerSocketChannel)selectionKey.channel();
+						ServerSocketChannel serverChannel = (ServerSocketChannel) selectionKey.channel();
 						SocketChannel socketChannel = (SocketChannel) serverChannel.accept().configureBlocking(false);
 						socketChannel.register(selector, SelectionKey.OP_READ);
 						System.out.println("Got  connection from  " + socketChannel.getRemoteAddress());
-					}
-					
-					if (selectionKey.isWritable()) {
-						if (selectionKey.isValid()) {
-							SocketChannel socketChannel = (SocketChannel)selectionKey.channel();
-							socketChannel.register(selector, SelectionKey.OP_READ);
-							localBuffer.flip();
-							if (localBuffer.hasRemaining()) {
-								socketChannel.write(localBuffer);
-							}
-							localBuffer.clear();
-						}
-					}
-					
-					if (selectionKey.isReadable()) {
+					} else if (selectionKey.isReadable()) {
 						if (!selectionKey.isValid()) {
 							continue;
 						}
-						SocketChannel socketChannel = (SocketChannel)selectionKey.channel();
+						SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
 						socketChannel.register(selector, SelectionKey.OP_WRITE);
 						localBuffer.clear();
 						int bytesRead = -1;
@@ -87,6 +73,16 @@ public class EchoServer {
 								socketChannel.close();
 								selectionKey.cancel();
 							}
+						}
+					} else if (selectionKey.isWritable()) {
+						if (selectionKey.isValid()) {
+							SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
+							socketChannel.register(selector, SelectionKey.OP_READ);
+							localBuffer.flip();
+							if (localBuffer.hasRemaining()) {
+								socketChannel.write(localBuffer);
+							}
+							localBuffer.clear();
 						}
 					}
 				}

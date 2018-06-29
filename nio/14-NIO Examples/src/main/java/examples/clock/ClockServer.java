@@ -12,12 +12,12 @@ import java.util.Iterator;
 import java.util.Set;
 
 /**
- * @author panteng
- * @description 时钟服务器
- * @date 17-3-10.
+ * @date 2018.6.29
  */
 public class ClockServer {
 
+	private static int port = 4700;
+	
 	public static void main(String[] arges) throws Exception {
 		char name = 'A';
 		// 创建通道,并设置非阻塞
@@ -26,9 +26,9 @@ public class ClockServer {
 		// 创建选择器，并为通道绑定感兴趣的事件
 		Selector selector = Selector.open();
 		serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT).attach("主监听通道");
-		System.out.println("Clock Server start...");
+		System.out.println("Clock Server start...@" + port);
 		// 通道绑定端口号
-		InetSocketAddress inetSocketAddress = new InetSocketAddress("127.0.0.1", 4700);
+		InetSocketAddress inetSocketAddress = new InetSocketAddress("127.0.0.1", port);
 		serverSocketChannel.socket().bind(inetSocketAddress);
 		// 开始轮询通道事件
 		while (true) {
@@ -36,7 +36,7 @@ public class ClockServer {
 			int readyChannels = selector.selectNow();
 			if (readyChannels > 0) {
 				Set<SelectionKey> readyKeys = selector.selectedKeys();
-				Iterator iterator = readyKeys.iterator();
+				Iterator<SelectionKey> iterator = readyKeys.iterator();
 				while (iterator.hasNext()) {
 					SelectionKey readyKey = (SelectionKey) iterator.next();
 					iterator.remove();
@@ -45,14 +45,35 @@ public class ClockServer {
 							continue;
 						}
 						ServerSocketChannel readyChannel = (ServerSocketChannel) readyKey.channel();
-						// System.out.println("Acceptor socket " + readyChannel.hashCode());
 						SocketChannel socketChannel = (SocketChannel) readyChannel.accept().configureBlocking(false);
 						socketChannel.register(selector, (SelectionKey.OP_READ | SelectionKey.OP_WRITE)).attach(name);
 						System.out.println("User " + name + " from " + socketChannel.getRemoteAddress() + " connected");
 						name++;
-					}
+					} else if (readyKey.isReadable()) {
+						if (!readyKey.isValid()) {
+							continue;
+						}
+						SocketChannel readyChannel = (SocketChannel) readyKey.channel();
+						ByteBuffer buffer = ByteBuffer.allocate(512);
 
-					if (readyKey.isWritable()) {
+						int bytesRead = -1;
+						try {
+							bytesRead = readyChannel.read(buffer);
+						} catch (Exception e) {
+							System.out.println("User " + readyKey.attachment() + " from "
+									+ readyChannel.getRemoteAddress() + " disconnected");
+							readyChannel.close();
+							readyKey.cancel();
+						}
+						if (bytesRead == -1 && !readyChannel.socket().isClosed()) {
+							System.out.println("User " + readyKey.attachment() + " from "
+									+ readyChannel.getRemoteAddress() + " disconnected");
+							readyChannel.close();
+							readyKey.cancel();
+						} else if (bytesRead > 0) {
+							System.out.println(readyKey.attachment() + ": " + getString(buffer));
+						}
+					} else if (readyKey.isWritable()) {
 						SocketChannel readyChannel = (SocketChannel) readyKey.channel();
 						if (readyKey.isValid()) {
 							ByteBuffer buffer = ByteBuffer.allocate(512);
@@ -61,32 +82,6 @@ public class ClockServer {
 							buffer.flip();
 							readyChannel.write(buffer);
 						}
-
-					}
-
-					if (readyKey.isReadable()) {
-						if (!readyKey.isValid()) {
-							continue;
-						}
-						SocketChannel readyChannel = (SocketChannel) readyKey.channel();
-						ByteBuffer buffer = ByteBuffer.allocate(512);
-						
-						int bytesRead = -1;
-						try {
-							bytesRead = readyChannel.read(buffer);
-						} catch (Exception e) {
-							System.out.println("User " + readyKey.attachment() + " from " + readyChannel.getRemoteAddress() + " disconnected");
-							readyChannel.close();
-							readyKey.cancel();
-						}
-						if (bytesRead == -1 && !readyChannel.socket().isClosed()) {
-							System.out.println("User " + readyKey.attachment() + " from " + readyChannel.getRemoteAddress() + " disconnected");
-							readyChannel.close();
-							readyKey.cancel();
-						} else if (bytesRead > 0) {
-							System.out.println(readyKey.attachment() + " " + getString(buffer));
-						}
-						
 					}
 				}
 			}
