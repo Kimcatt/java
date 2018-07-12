@@ -1,2 +1,1 @@
-# java-examples
-practice makes better
+# learn java by examples
